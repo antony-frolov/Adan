@@ -17,6 +17,7 @@ from typing import List
 
 import torch
 from torch import Tensor
+from torch.distributed.tensor import DTensor
 from torch.optim.optimizer import Optimizer
 
 
@@ -175,8 +176,10 @@ class Adan(Optimizer):
             for p in group['params']:
                 if p.grad is None:
                     continue
-                params_with_grad.append(p)
-                grads.append(p.grad)
+
+                if (p.to_local() if isinstance(p, DTensor) else p).numel() != 0:
+                    params_with_grad.append(p.to_local() if isinstance(p, DTensor) else p)
+                    grads.append(p.grad.to_local() if isinstance(p.grad, DTensor) else p.grad)
 
                 state = self.state[p]
                 if len(state) == 0:
@@ -188,10 +191,11 @@ class Adan(Optimizer):
                     state['neg_pre_grad'] = p.grad.clone().mul_(
                         -clip_global_grad_norm)
 
-                exp_avgs.append(state['exp_avg'])
-                exp_avg_sqs.append(state['exp_avg_sq'])
-                exp_avg_diffs.append(state['exp_avg_diff'])
-                neg_pre_grads.append(state['neg_pre_grad'])
+                if (p.to_local() if isinstance(p, DTensor) else p).numel() != 0:
+                    exp_avgs.append(s.to_local() if isinstance(s := state['exp_avg'], DTensor) else s)
+                    exp_avg_sqs.append(s.to_local() if isinstance(s := state['exp_avg_sq'], DTensor) else s)
+                    exp_avg_diffs.append(s.to_local() if isinstance(s := state['exp_avg_diff'], DTensor) else s)
+                    neg_pre_grads.append(s.to_local() if isinstance(s := state['neg_pre_grad'], DTensor) else s)
 
             if not params_with_grad:
                 continue
