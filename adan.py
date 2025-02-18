@@ -388,7 +388,7 @@ def _fused_adan_multi_tensor(
 ):
     import fused_adan
     multi_tensor_applier = MultiTensorApply(2048 * 32)
-    _dummy_overflow_buf = torch.cuda.IntTensor([0])
+    _dummy_overflow_buf = torch.tensor([0], dtype=torch.int32, device="cuda")
     multi_tensor_applier(
         fused_adan.adan_multi_tensor, _dummy_overflow_buf,
         [params, grads, exp_avgs, exp_avg_sqs, exp_avg_diffs, neg_pre_grads],
